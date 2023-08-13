@@ -8,15 +8,6 @@ class Event {
         this.attachments = attachments
         this.creator = creator
     }
-
-    createReactionCollector(message) {
-        this.collector = this.message.createReactionCollector().on("collect", (reaction, user) => {
-            console.log("pörög")
-            if (reaction.emoji.name != "✅" && reaction.emoji.name != "❌" && reaction.emoji.name != "❓" && reaction.emoji.name != "⏰") {
-                reaction.remove() 
-            }
-        })
-    }
 }
 
 module.exports = Event

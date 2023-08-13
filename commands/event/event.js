@@ -17,21 +17,21 @@ const eventCmd = new SlashCommandBuilder()
                 .addStringOption(option => 
                     option.setMinLength(6)
                     .setMaxLength(128)
-                    .setName("nev")
+                    .setName("név")
                     .setDescription("Küldetés fantázia neve")
                     .setRequired(true)
                 )
                 .addNumberOption(option => 
                     option.setMinValue(2023)
                     .setMaxValue(2040)
-                    .setName("ev")
+                    .setName("év")
                     .setDescription("Küldetés megrendezésének éve")
                     .setRequired(true)
                 )
                 .addNumberOption(option => 
                     option.setMinValue(1)
                     .setMaxValue(12)
-                    .setName("honap")
+                    .setName("hónap")
                     .setDescription("Küldetés megrendezésének hónapja")
                     .setRequired(true)
                 )
@@ -45,7 +45,7 @@ const eventCmd = new SlashCommandBuilder()
                 .addNumberOption(option => 
                     option.setMinValue(1)
                     .setMaxValue(24)
-                    .setName("ora")
+                    .setName("óra")
                     .setDescription("Küldetés megrendezésének órája")
                     .setRequired(true)
                 )
@@ -83,14 +83,14 @@ const eventCmd = new SlashCommandBuilder()
                 .addNumberOption(option => 
                     option.setMinValue(2023)
                     .setMaxValue(2040)
-                    .setName("ev")
+                    .setName("év")
                     .setDescription("Küldetés megrendezésének éve")
                     .setRequired(true)
                 )
                 .addNumberOption(option => 
                     option.setMinValue(1)
                     .setMaxValue(12)
-                    .setName("honap")
+                    .setName("hónap")
                     .setDescription("Küldetés megrendezésének hónapja")
                     .setRequired(true)
                 )
@@ -104,7 +104,7 @@ const eventCmd = new SlashCommandBuilder()
                 .addNumberOption(option => 
                     option.setMinValue(1)
                     .setMaxValue(24)
-                    .setName("ora")
+                    .setName("óra")
                     .setDescription("Küldetés megrendezésének órája")
                     .setRequired(true)
                 )
@@ -119,17 +119,73 @@ const eventCmd = new SlashCommandBuilder()
             .addSubcommand(cmd => 
                 cmd.setName('edit')
                 .setDescription('Küldetés szerkesztése')
+                .addNumberOption(option => 
+                    option.setMinValue(1)
+                    .setName("azonosító")
+                    .setDescription("Küldetés azonosítója")
+                    .setRequired(true)
+                )
+                .addStringOption(option => 
+                    option.setMinLength(6)
+                    .setMaxLength(128)
+                    .setName("név")
+                    .setDescription("Küldetés fantázia neve")
+                    .setRequired(false)
+                )
+                .addNumberOption(option => 
+                    option.setMinValue(2023)
+                    .setMaxValue(2040)
+                    .setName("év")
+                    .setDescription("Küldetés megrendezésének éve")
+                    .setRequired(false)
+                )
+                .addNumberOption(option => 
+                    option.setMinValue(1)
+                    .setMaxValue(12)
+                    .setName("hónap")
+                    .setDescription("Küldetés megrendezésének hónapja")
+                    .setRequired(false)
+                )
+                .addNumberOption(option => 
+                    option.setMinValue(1)
+                    .setMaxValue(31)
+                    .setName("nap")
+                    .setDescription("Küldetés megrendezésének éve")
+                    .setRequired(false)
+                )
+                .addNumberOption(option => 
+                    option.setMinValue(1)
+                    .setMaxValue(24)
+                    .setName("óra")
+                    .setDescription("Küldetés megrendezésének órája")
+                    .setRequired(false)
+                )
+                .addNumberOption(option => 
+                    option.setMinValue(0)
+                    .setMaxValue(59)
+                    .setName("perc")
+                    .setDescription("Küldetés megrendezésének perce")
+                    .setRequired(false)
+                )
+                .addAttachmentOption(option => 
+                    option.setName("sitrep")
+                    .setDescription("SITREP a küldetéshez")
+                )
             )
     )
 
 async function exec(ec, interaction) {
     if (interaction.options.getSubcommandGroup() === "mission") {
         if (interaction.options.getSubcommand() === "create") {
-            interaction.member.guild.members.fetch(interaction.user.id).then(member => {
-                if (member.roles.cache.find(r => r.id === mission_role)) { 
-                    ec.addEvent("mission", interaction.options.getString("nev"), [interaction.options.getNumber("ev"), interaction.options.getNumber("honap"), interaction.options.getNumber("nap"), interaction.options.getNumber("ora"), interaction.options.getNumber("perc")], interaction.options.getAttachment("sitrep"), interaction.user.id)
-                }
-            })
+            var member = interaction.member
+            if (member.roles.cache.find(r => r.id === mission_role)) { 
+                ec.addEvent("mission", interaction.options.getString("név"), [interaction.options.getNumber("év"), interaction.options.getNumber("hónap"), interaction.options.getNumber("nap"), interaction.options.getNumber("óra"), interaction.options.getNumber("perc")], interaction.options.getAttachment("sitrep"), interaction.member)
+            }
+        } else if(interaction.options.getSubcommand() === "edit") {
+            var member = interaction.member
+            if (member.roles.cache.find(r => r.id === mission_role)) {
+                ec.modifyEvent(ec.events[parseInt(interaction.options.getNumber("azonositó"))], interaction.options.getString("név"), [interaction.options.getNumber("év"), interaction.options.getNumber("hónap"), interaction.options.getNumber("nap"), interaction.options.getNumber("óra"), interaction.options.getNumber("perc")], interaction.options.getAttachment("sitrep"))
+            }
         }
     }
 }

@@ -2,6 +2,7 @@
     "mission_channel":"1138782958182993983",
     "training_channel":"123",
     "notification_channel":"123",
+    "sitrep_channel": "1140004340896116878",
     "mission_role":"123",
     "training_role":"123"
 }
