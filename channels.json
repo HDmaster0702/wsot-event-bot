@@ -3,6 +3,9 @@
     "training_channel":"123",
     "notification_channel":"123",
     "sitrep_channel": "1140004340896116878",
-    "mission_role":"123",
-    "training_role":"123"
+    "mission_role":"1138808521757048932",
+    "training_role":"123",
+    "supervisor_role": "1140702448894349393",
+    "selector_channel": "1140718352990490674",
+    "supervisor_channel": "1140743593032699966"
 }

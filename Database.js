@@ -39,12 +39,18 @@ class Database {
         if (event.type === "mission") {
             var query = ""
             var values = []
-            if(event.sitrep) {
-                query = "INSERT INTO events SET type = ?, name = ?, datetime = ?, creator = ?, messageid = ?, sitrepid = ?"
-                values = [event.type, event.name, String(event.datetime.valueOf()), event.creator.id, event.message.id, event.sitrep.id]
-            } else {
-                query = "INSERT INTO events SET type = ?, name = ?, datetime = ?, creator = ?, messageid = ?"
-                values = [event.type, event.name, String(event.datetime.valueOf()), event.creator.id, event.message.id]
+
+            query = "INSERT INTO events SET type = ?, name = ?, datetime = ?, creator = ?"
+            values = [event.type, event.name, String(event.datetime.valueOf()), event.creator.id]
+
+            if(event.attachments[0]) {
+                query = query + ", attachment1 = ?"
+                values.push(event.attachments[0].url)
+            }
+
+            if(event.attachments[1]) {
+                query = query + ", attachment2 = ?"
+                values.push(event.attachments[1].url)
             }
 
             this.connection.query(query, values, (err, results, fields) => {
@@ -56,10 +62,10 @@ class Database {
         }
     }
 
-    modifyEventInDB(event, name, datetime) {
-        const query = "UPDATE events SET "
-        const sets = []
-        const values = []
+    modifyEventInDB(event, name, datetime, attachments, attachments2) {
+        var query = "UPDATE events SET "
+        var sets = []
+        var values = []
         if (name) {
             sets.push("name = ?")
             values.push(name)
@@ -68,6 +74,16 @@ class Database {
         if (datetime) {
             sets.push("datetime = ?")
             values.push(datetime.valueOf())
+        }
+
+        if(event.attachments) {
+            sets.push("attachment1 = ?")
+            values.push(attachments.attachment)
+        }
+
+        if(event.attachments2) {
+            sets.push("attachment2 = ?")
+            values.push(attachments2.attachment)
         }
 
         query = query + sets.join(", ")
@@ -85,6 +101,28 @@ class Database {
             if (datetime) {
                 event.datetime = datetime
             }
+
+            if (attachments){
+                event.attachments[0] = attachment
+            }
+
+            if (attachments2){
+                event.attachments[1] = attachments2
+            }
+        })
+    }
+
+    updateSitrep(event) {
+        this.connection.query("UPDATE events SET sitrepid = ? WHERE dbid = ?", [event.sitrep.id, event.dbid])
+    }
+
+    updateMessage(event) {
+        this.connection.query("UPDATE events SET messageid = ? WHERE dbid = ?", [event.message.id, event.dbid])
+    }
+
+    removeEventFromDB(event) {
+        this.connection.query("DELETE FROM events WHERE dbid = ?", [event.dbid], (err, results, fields) => {
+            if(err) console.error(err);
         })
     }
 }

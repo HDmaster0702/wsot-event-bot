@@ -1,5 +1,5 @@
 
-const {Client, Events, GatewayIntentBits, Collection, Routes} = require("discord.js");
+const {Client, Events, GatewayIntentBits, Collection, Routes, Partials} = require("discord.js");
 const {token, clientid, guildid} = require("./config.json")
 const Database = require("./Database.js")
 const EventController = require("./EventController.js")
@@ -8,9 +8,12 @@ const db = new Database()
 
 const command = require("./commands/event/event.js");
 
-const client = new Client({intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages, GatewayIntentBits.DirectMessages, GatewayIntentBits.GuildModeration, GatewayIntentBits.MessageContent]})
+const client = new Client({
+                    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages, GatewayIntentBits.DirectMessages, GatewayIntentBits.GuildModeration, GatewayIntentBits.MessageContent],
+                    partials: [Partials.Message, Partials.Channel, Partials.Reaction],
+                })
 
-const eventcontroller = new EventController(client, db)
+var eventcontroller = false
 
 client.commands = new Collection()
 client.commands.set("event", command)
@@ -19,6 +22,8 @@ client.commands.set("event", command)
 
 client.on(Events.ClientReady, () => {
     console.log('Event Bot Successfully Started as ' + client.user.tag)
+
+    eventcontroller = new EventController(client, db)
 
     client.on(Events.InteractionCreate, async interaction => {
         if(!interaction.isChatInputCommand()) return;

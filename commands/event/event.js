@@ -1,6 +1,6 @@
 const client = require("../../index.js");
 //const {mission_role} = require("../../permission.json")
-const mission_role = "1138808521757048932"
+const {mission_channel, training_channel, notification_channel, sitrep_channel, mission_role, training_role, supervisor_role, selector_channel, supervisor_channel} = require("../../channels.json")
 const { SlashCommandBuilder } = require("discord.js")
 
 const eventCmd = new SlashCommandBuilder()
@@ -60,6 +60,10 @@ const eventCmd = new SlashCommandBuilder()
                     option.setName("sitrep")
                     .setDescription("SITREP a küldetéshez")
                 )
+                .addAttachmentOption(option => 
+                    option.setName("borítókép")
+                    .setDescription("Borítókép, ami bekerül a küldetés alá")
+                )
             )
             .addSubcommand(cmd => 
                 cmd.setName('delete')
@@ -69,6 +73,10 @@ const eventCmd = new SlashCommandBuilder()
                     .setName("azonosító")
                     .setDescription("Küldetés azonosítója")
                     .setRequired(true)
+                )
+                .addBooleanOption(option => 
+                    option.setName("csendes")
+                    .setDescription("Csendes törlés esetén a visszajelző személyek nem kerülnek értesítésre a lemondásról")
                 )
             )
             .addSubcommand(cmd => 
@@ -171,21 +179,36 @@ const eventCmd = new SlashCommandBuilder()
                     option.setName("sitrep")
                     .setDescription("SITREP a küldetéshez")
                 )
+                .addAttachmentOption(option => 
+                    option.setName("borítókép")
+                    .setDescription("Borítókép, ami bekerül a küldetés alá")
+                )
             )
     )
 
 async function exec(ec, interaction) {
+    if (!ec) { interaction.reply({ text: "A bot még nem inicializálódott. Kérlek várj pár másodpercet és próbáld újra!", ephemeral: true}) }
     if (interaction.options.getSubcommandGroup() === "mission") {
-        if (interaction.options.getSubcommand() === "create") {
-            var member = interaction.member
-            if (member.roles.cache.find(r => r.id === mission_role)) { 
-                ec.addEvent("mission", interaction.options.getString("név"), [interaction.options.getNumber("év"), interaction.options.getNumber("hónap"), interaction.options.getNumber("nap"), interaction.options.getNumber("óra"), interaction.options.getNumber("perc")], interaction.options.getAttachment("sitrep"), interaction.member)
-            }
-        } else if(interaction.options.getSubcommand() === "edit") {
-            var member = interaction.member
-            if (member.roles.cache.find(r => r.id === mission_role)) {
-                ec.modifyEvent(ec.events[parseInt(interaction.options.getNumber("azonositó"))], interaction.options.getString("név"), [interaction.options.getNumber("év"), interaction.options.getNumber("hónap"), interaction.options.getNumber("nap"), interaction.options.getNumber("óra"), interaction.options.getNumber("perc")], interaction.options.getAttachment("sitrep"))
-            }
+        var member = interaction.member
+        switch(interaction.options.getSubcommand()) {
+            case "create":
+                if (member.roles.cache.find(r => r.id === mission_role)) { 
+                    ec.addEvent("mission", interaction.options.getString("név"), [interaction.options.getNumber("év"), interaction.options.getNumber("hónap"), interaction.options.getNumber("nap"), interaction.options.getNumber("óra"), interaction.options.getNumber("perc")], interaction.options.getAttachment("sitrep"), interaction.options.getAttachment("borítókép"), interaction.member)
+                }
+            break
+
+            case "edit":
+                if (member.roles.cache.find(r => r.id === mission_role)) {
+                    ec.modifyEvent(ec.events[interaction.options.getNumber("azonosító")], interaction.options.getString("név"), [interaction.options.getNumber("év"), interaction.options.getNumber("hónap"), interaction.options.getNumber("nap"), interaction.options.getNumber("óra"), interaction.options.getNumber("perc")], interaction.options.getAttachment("sitrep"), interaction.options.getAttachment("borítókép"))
+                }
+            break
+
+            case "delete":
+                if (!ec.events[interaction.options.getNumber("azonosító")]) { return }
+                if (member.roles.cache.find(r => r.id === supervisor_role || ec.events[interaction.options.getNumber("azonosító")].creator.id === interaction.member.id)) {
+                    ec.deleteEvent(ec.events[interaction.options.getNumber("azonosító")], ec.events[interaction.options.getNumber("csendes")])
+                }
+            break
         }
     }
 }
