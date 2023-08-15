@@ -1,11 +1,8 @@
 {
-    "mission_channel":"1138782958182993983",
-    "training_channel":"123",
-    "notification_channel":"123",
-    "sitrep_channel": "1140004340896116878",
-    "mission_role":"1138808521757048932",
-    "training_role":"123",
-    "supervisor_role": "1140702448894349393",
-    "selector_channel": "1140718352990490674",
-    "supervisor_channel": "1140743593032699966"
+    "mission_channel":"1141037599436316763",
+    "training_channel":"1141037619988414586",
+    "notification_channel":"1141037569824542730",
+    "sitrep_channel": "1141037752834601023",
+    "selector_channel": "1141037645414269049",
+    "supervisor_channel": "1141037528846176339"
 }

@@ -36,33 +36,30 @@ class Database {
     }
 
     insertEventIntoDB(event, callback) {
-        if (event.type === "mission") {
-            var query = ""
-            var values = []
+        var query = ""
+        var values = []
 
-            query = "INSERT INTO events SET type = ?, name = ?, datetime = ?, creator = ?"
-            values = [event.type, event.name, String(event.datetime.valueOf()), event.creator.id]
+        query = "INSERT INTO events SET type = ?, name = ?, datetime = ?, creator = ?"
+        values = [event.type, event.name, String(event.datetime.valueOf()), event.creator.id]
 
-            if(event.attachments[0]) {
-                query = query + ", attachment1 = ?"
-                values.push(event.attachments[0].url)
-            }
-
-            if(event.attachments[1]) {
-                query = query + ", attachment2 = ?"
-                values.push(event.attachments[1].url)
-            }
-
-            this.connection.query(query, values, (err, results, fields) => {
-                if (err) console.error(err);
-                callback.insertEvent(event, results.insertId);
-            })
-        } else if (event.type === "training") {
-            
+        if(event.attachments[0]) {
+            query = query + ", attachment1 = ?"
+            values.push(event.attachments[0].url)
         }
+
+        if(event.attachments[1]) {
+            query = query + ", attachment2 = ?"
+            values.push(event.attachments[1].url)
+        }
+
+        this.connection.query(query, values, (err, results, fields) => {
+            if (err) console.error(err);
+            callback.insertEvent(event, results.insertId);
+        })
     }
 
     modifyEventInDB(event, name, datetime, attachments, attachments2) {
+
         var query = "UPDATE events SET "
         var sets = []
         var values = []
@@ -76,12 +73,12 @@ class Database {
             values.push(datetime.valueOf())
         }
 
-        if(event.attachments) {
+        if(attachments) {
             sets.push("attachment1 = ?")
             values.push(attachments.attachment)
         }
 
-        if(event.attachments2) {
+        if(attachments2) {
             sets.push("attachment2 = ?")
             values.push(attachments2.attachment)
         }
@@ -100,13 +97,20 @@ class Database {
 
             if (datetime) {
                 event.datetime = datetime
+                event.scheduler.postpone()
             }
 
             if (attachments){
-                event.attachments[0] = attachment
+                if(!event.attachments) {
+                    event.attachments = []
+                }
+                event.attachments[0] = attachments
             }
 
             if (attachments2){
+                if(!event.attachments) {
+                    event.attachments = []
+                }
                 event.attachments[1] = attachments2
             }
         })
