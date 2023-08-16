@@ -58,7 +58,7 @@ class Database {
         })
     }
 
-    modifyEventInDB(event, name, datetime, attachments, attachments2) {
+    modifyEventInDB(event, name, datetime, attachments, attachments2, attachments3) {
 
         var query = "UPDATE events SET "
         var sets = []
@@ -83,6 +83,11 @@ class Database {
             values.push(attachments2.attachment)
         }
 
+        if(attachments3) {
+            sets.push("attachment3 = ?")
+            values.push(attachments3.attachment)
+        }
+
         query = query + sets.join(", ")
         values.push(event.dbid)
 
@@ -102,16 +107,23 @@ class Database {
 
             if (attachments){
                 if(!event.attachments) {
-                    event.attachments = []
+                    event.attachments = [false, false, false]
                 }
                 event.attachments[0] = attachments
             }
 
             if (attachments2){
                 if(!event.attachments) {
-                    event.attachments = []
+                    event.attachments = [false, false, false]
                 }
                 event.attachments[1] = attachments2
+            }
+
+            if(attachments3){
+                if(!event.attachments) {
+                    event.attachments = [false, false, false]
+                }
+                event.attachments[2] = attachments3
             }
         })
     }
@@ -122,6 +134,10 @@ class Database {
 
     updateMessage(event) {
         this.connection.query("UPDATE events SET messageid = ? WHERE dbid = ?", [event.message.id, event.dbid])
+    }
+
+    updateRoles(event) {
+        this.connection.query("UPDATE events SET rolesid = ? WHERE dbid = ?", [event.roles.id, event.dbid])
     }
 
     removeEventFromDB(event) {

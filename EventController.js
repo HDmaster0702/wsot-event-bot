@@ -1,4 +1,4 @@
-const { EmbedBuilder, AttachmentBuilder } = require("discord.js")
+const { EmbedBuilder, AttachmentBuilder, Attachment } = require("discord.js")
 const scheduler = require("node-schedule");
 const Event = require("./Event.js")
 const EventScheduler = require("./EventScheduler.js")
@@ -6,7 +6,7 @@ const { token, clientid, guildid } = require("./config.json")
 const {mission_channel, training_channel, notification_channel, sitrep_channel, selector_channel, supervisor_channel} = require("./channels.json")
 const { mission_role, training_role, supervisor_role, feedback_role } = require("./roles.json")
 
-// TO-DO: KÜLDETÉS KÉSZÍTŐNEK KÜLDENI A FELÜGYELŐI LOGBÓL A LISTÁT; KÜLÖNÁLLÓ DÁTUM MÓDOSÍTÁS; MODLISTA MEGADÁSÁNAK A LEHETŐSÉGE
+// TO-DO: KÜLDETÉS KÉSZÍTŐNEK KÜLDENI A FELÜGYELŐI LOGBÓL A LISTÁT???
 
 class EventController {
     events = []
@@ -22,10 +22,10 @@ class EventController {
         console.log("Event Controller successfully initalized!")
     }
     
-    addEvent(type, name, datetime, attachments, attachments2, creator) {
+    addEvent(type, name, datetime, attachments, attachments2, attachments3, creator) {
         if (!attachments) { attachments = false }
         if (!attachments2) { attachments2 = false }
-        var event = new Event(type, name, datetime, [attachments, attachments2], creator)
+        var event = new Event(type, name, datetime, [attachments, attachments2, attachments3], creator)
 
         event.dbid = 0
         this.db.insertEventIntoDB(event, this)
@@ -35,7 +35,7 @@ class EventController {
         this.client.guilds.fetch(guildid).then(guild => {
             guild.members.fetch(query.creator).then(member => {
                 var datetime = new Date(parseFloat(query.datetime))
-                var event = new Event(query.type, query.name, datetime, [false, false], member, true)
+                var event = new Event(query.type, query.name, datetime, [false, false, false], member, true)
 
                 event.dbid = query.dbid
         
@@ -57,10 +57,18 @@ class EventController {
                 if(query.attachment2){
                     event.attachments[1] = new AttachmentBuilder(query.attachment2)
                 }
+
+                if(query.attachment3){
+                    event.attachments[2] = new AttachmentBuilder(query.attachment3)
+                }
+
+                if(query.attachment4){
+                    event.attachents[3] = new AttachmentBuilder(query.attachment4)
+                }
     
                 guild.channels.fetch(fetchChannel).then(channel => channel.messages.fetch(query.messageid).then(message => {
                     event.message = message
-                    if (!query.sitrepid) {
+                    if (!query.sitrepid && !query.rolesid) {
                         const now = new Date()
 
                         if(event.datetime <= now) {
@@ -69,10 +77,25 @@ class EventController {
                             event.scheduler = new EventScheduler(this, event)
                         }
                     }
-                }))
+                })).catch(err => console.log(err))
                 if(query.sitrepid) {
                     guild.channels.fetch(sitrep_channel).then(channel => channel.messages.fetch(query.sitrepid).then(message => {
                         event.sitrep = message
+
+                        if (!query.rolesid) {
+                            const now = new Date()
+
+                            if(event.datetime <= now) {
+                                this.deleteEvent(event)
+                            } else {
+                                event.scheduler = new EventScheduler(this, event)
+                            }
+                        }
+                    })).catch(err => console.log(err))
+                }
+                if(query.rolesid) {
+                    guild.channels.fetch(sitrep_channel).then(channel => channel.messages.fetch(query.rolesid).then(message => {
+                        event.roles = message
 
                         const now = new Date()
 
@@ -81,7 +104,7 @@ class EventController {
                         } else {
                             event.scheduler = new EventScheduler(this, event)
                         }
-                    }))
+                    })).catch(err => console.log(err))
                 }
             })
         })
@@ -101,7 +124,7 @@ class EventController {
             var embed = new EmbedBuilder()
                 .setTitle(event.creator.displayName)
                 .setAuthor({name: "Esemény Létrehozás", iconURL: "https://imgur.com/OW5BzNC.png"})
-                .setDescription(`Azonosító: ${event.dbid}\nTípus: ${event.type}\nNév: ${event.name}\nIdőpont: ${strDate.substring(0, strDate.length - 3)}\nSITREP: ${event.attachments[0] ? "Mellékelve" : "Nincs mellékelve"}\nBorítókép: ${event.attachments[1] ? "Van" : "Nincs"}`)
+                .setDescription(`Azonosító: ${event.dbid}\nTípus: ${event.type}\nNév: ${event.name}\nIdőpont: ${strDate.substring(0, strDate.length - 3)}\nSITREP: ${event.attachments[0] ? "Mellékelve" : "Nincs mellékelve"}\nBorítókép: ${event.attachments[1] ? "Van" : "Nincs"}\nEgyedi modlista: ${event.attachments[2] ? "Van" : "Nincs"}`)
                 .setTimestamp(new Date().valueOf())
                 .setColor("#2ecc71")
 
@@ -130,12 +153,19 @@ class EventController {
                 sitrep_text = "A SITREP később kerül beküldésre!"
             }
 
+            var modlist_text = ""
+            if(event.attachments[2]) {
+                modlist_text = "\n\n**__Az esemény modpackjét fentebb találod meg csatolva.__**"
+            } else {
+                modlist_text = "\n\nAz esemény a klán aktuális, legfrissebb modpackjét használja."
+            }
+
             const strDate = event.datetime.toLocaleString()
 
             var embed = new EmbedBuilder()
             .setTitle(event.name + " (" + strDate.substring(0, strDate.length - 3) + ")")
             .setAuthor({name: event.creator.displayName, iconURL: event.creator.user.avatarURL()})
-            .setDescription(sitrep_text + "\n\nKérlek jelezz vissza a szokásos jelzésformákkal.\n\n✅: Jönni fogok\n❌: Nem fogok jönni\n❓: Még nem tudom biztosra\n⏰: Késni fogok (kiegészítő jelzés)")
+            .setDescription(sitrep_text + modlist_text + "\n\nKérlek jelezz vissza a szokásos jelzésformákkal.\n\n✅: Jönni fogok\n❌: Nem fogok jönni\n❓: Még nem tudom biztosra\n⏰: Késni fogok (kiegészítő jelzés)")
             .setTimestamp(new Date().valueOf())
             .setFooter({ text: "Azonosító: " + String(event.dbid)})
 
@@ -143,7 +173,13 @@ class EventController {
                 embed.setImage(event.attachments[1].attachment)
             }
 
-            channel.send({ embeds: [embed] }).then(message => {
+            var options = {embeds: [embed]}
+
+            if (event.attachments[2]){
+                options = {embeds: [embed], files: [event.attachments[2]]}
+            }
+
+            channel.send(options).then(message => {
                 event.message = message
                 message.react("✅")
                 message.react("❌")
@@ -165,14 +201,41 @@ class EventController {
         }))
     }
 
-    modifyEvent(event, name, datetime, attachments, attachments2){
+    modifyEvent(event, name, datetime, attachments, attachments2, attachments3){
+
+        if ((!name && !datetime && !attachments && !attachments2 && !attachments3)) { return }
 
         if(!attachments) { attachments = false }
         if(!attachments2) { attachments2 = false }
+        if(!attachments3) { attachments3 = false }
         
-        if(!datetime[0] || !datetime[1] || !datetime[2] || !datetime[3] || !datetime[4]) { datetime = false }
+        if(!datetime[0] || !datetime[1] || !datetime[2] || !datetime[3] || !datetime[4]) { 
+            if(!datetime[0] && !datetime[1] && !datetime[2] && !datetime[3] && !datetime[4]) {
+                datetime = false
+            } else{ 
+                if(!datetime[0]) {
+                    datetime[0] = event.datetime.getFullYear()
+                } 
+                if(!datetime[1]) {
+                    datetime[1] = event.datetime.getMonth()
+                } else {
+                    datetime[1] = datetime[1] - 1
+                } 
+                if(!datetime[2]) {
+                    datetime[2] = event.datetime.getDate()
+                } 
+                if(!datetime[3]) {
+                    datetime[3] = event.datetime.getHours()
+                } 
+                if(!datetime[4]) {
+                    datetime[4] = event.datetime.getMinutes()
+                }
 
-        if ((!name && !datetime && !attachments) || datetime.length < 5) { return }
+                datetime = new Date(datetime[0], datetime[1], datetime[2], datetime[3], datetime[4])
+            }
+        } else {
+            datetime = new Date(datetime[0], datetime[1], datetime[2], datetime[3], datetime[4])
+        }
 
         var fetchChannel = ""
         if(event.type === "mission") {
@@ -186,7 +249,6 @@ class EventController {
 
             if (attachments) {
                 if (event.attachments[0]) {
-                    console.log(event.sitrep.id)
                     guild.channels.fetch(sitrep_channel).then(channel => channel.messages.fetch(event.sitrep.id).then(msg => {
                         event.attachments[0] = attachments
                         msg.edit({content: event.name + " SITREP", files: [event.attachments[0].attachment]})
@@ -209,7 +271,7 @@ class EventController {
                     })
                 } else {
                     if(!event.attachments) {
-                        event.attachments = [false, false]
+                        event.attachments = [false, false, false]
                     }
                     event.attachments[0] = attachments
                     guild.channels.fetch(sitrep_channel).then(channel => channel.send({content: event.name + " SITREP", files: [event.attachments[0].attachment]}).then(msg => {
@@ -235,6 +297,50 @@ class EventController {
                 }
             }
 
+            if(attachments3) {
+                if(event.attachments[2]) {
+                    guild.channels.fetch(notification_channel).then(channel => {
+        
+                        const strDate = event.datetime.toLocaleString()
+            
+                        var embed = new EmbedBuilder()
+                            .setTitle(event.creator.displayName)
+                            .setAuthor({name: "Modlista Frissítés", iconURL: "https://imgur.com/Si82dbz.png"})
+                            .setDescription(`Azonosító: ${event.dbid}\nTípus: ${event.type}\nNév: ${event.name}`)
+                            .setTimestamp(new Date().valueOf())
+                            .setColor("#0d6ad2")
+            
+                        channel.send({embeds: [embed]}).then(msg => {
+                            this.alertModlist(event, "add")
+                        })
+            
+                    })
+                } else {
+                    if(!event.attachments) {
+                        event.attachments = [false, false, false]
+                    }
+
+                    event.attachments[2] = attachments3
+
+                    guild.channels.fetch(notification_channel).then(channel => {
+
+                        const strDate = event.datetime.toLocaleString()
+            
+                        var embed = new EmbedBuilder()
+                            .setTitle(event.creator.displayName)
+                            .setAuthor({name: "Modlista Létrehozás", iconURL: "https://imgur.com/Si82dbz.png"})
+                            .setDescription(`Azonosító: ${event.dbid}\nTípus: ${event.type}\nNév: ${event.name}`)
+                            .setTimestamp(new Date().valueOf())
+                            .setColor("#0d6ad2")
+            
+                        channel.send({embeds: [embed]}).then(msg => {
+                            this.alertModlist(event, "add")
+                        })
+            
+                    })
+                }
+            }
+
             guild.channels.fetch(fetchChannel).then(channel => channel.messages.fetch(event.message.id).then(msg => {
 
                 var sitrep_text = ""
@@ -248,20 +354,28 @@ class EventController {
                     }
                 }
 
+                var modlist_text = ""
+                if(event.attachments[2]) {
+                    modlist_text = "\n\n**__Az esemény modpackjét fentebb találod meg csatolva.__**"
+                } else {
+                    modlist_text = "\n\nAz esemény a klán aktuális, legfrissebb modpackjét használja."
+                }
+
                 var embed = new EmbedBuilder()
     
                 if(name && datetime) {
-                    datetime = new Date(datetime[0], datetime[1]-1, datetime[2], datetime[3], datetime[4])
                     const strDate = datetime.toLocaleString()
 
                     embed.setTitle(name + " (" + strDate.substring(0, strDate.length - 3) + ")")
                 } else if(name) {
                     const strDate = event.datetime.toLocaleString()
-                        embed.setTitle(name + " (" + strDate.substring(0, strDate.length - 3) + ")")
+                    embed.setTitle(name + " (" + strDate.substring(0, strDate.length - 3) + ")")
                 } else if(datetime) {
-                        datetime = new Date(datetime[0], datetime[1]-1, datetime[2], datetime[3], datetime[4])
-                        const strDate = datetime.toLocaleString()
-                        embed.setTitle(event.name + " (" + strDate.substring(0, strDate.length - 3) + ")")
+                    const strDate = datetime.toLocaleString()
+                    embed.setTitle(event.name + " (" + strDate.substring(0, strDate.length - 3) + ")")
+                } else {
+                    const strDate = event.datetime.toLocaleString()
+                    embed.setTitle(event.name + " (" + strDate.substring(0, strDate.length - 3) + ")")
                 }
 
                 if(datetime) {
@@ -305,18 +419,24 @@ class EventController {
                         embed.setImage(event.attachments[1].attachment)
                     }
                 }
+
+                var options = {embeds: [embed]}
+
+                if(attachments3) {
+                    options = {embeds: [embed], files: [attachments3.attachment]}
+                }
     
                 embed.setAuthor({name: event.creator.displayName, iconURL: event.creator.user.avatarURL()})
-                embed.setDescription(sitrep_text + "\n\nKérlek jelezz vissza a szokásos jelzésformákkal.\n\n✅: Jönni fogok\n❌: Nem fogok jönni\n❓: Még nem tudom biztosra\n⏰: Késni fogok (kiegészítő jelzés)")
+                embed.setDescription(sitrep_text + modlist_text + "\n\nKérlek jelezz vissza a szokásos jelzésformákkal.\n\n✅: Jönni fogok\n❌: Nem fogok jönni\n❓: Még nem tudom biztosra\n⏰: Késni fogok (kiegészítő jelzés)")
                 embed.setTimestamp(new Date().valueOf())
                 embed.setFooter({ text: "Azonosító: " + String(event.dbid)})
 
-                msg.edit({embeds: [embed]}).then(msg => {
+                msg.edit(options).then(msg => {
                     if (datetime) {
                         this.alertPostpone(event)
-                        this.db.modifyEventInDB(event, name, datetime, attachments, attachments2)
+                        this.db.modifyEventInDB(event, name, datetime, attachments, attachments2, attachments3)
                     } else {
-                        this.db.modifyEventInDB(event, name, datetime, attachments, attachments2)
+                        this.db.modifyEventInDB(event, name, datetime, attachments, attachments2, attachments3)
                     }
                 })
             }))        
@@ -343,7 +463,11 @@ class EventController {
             this.client.guilds.fetch(guildid).then(guild => {
                 if(event.sitrep) {
                     guild.channels.fetch(sitrep_channel).then(channel => channel.messages.fetch(event.sitrep.id).then(message => message.delete()))
-                }  
+                }
+
+                if(event.roles) {
+                    guild.channels.fetch(sitrep_channel).then(channel => channel.messages.fetch(event.roles.id).then(message => message.delete()))
+                }
     
                 guild.channels.fetch(fetchChannel).then(channel => channel.messages.fetch(event.message.id).then(message => message.delete().then(msg => {
                     this.events[event.dbid] = null
@@ -363,6 +487,53 @@ class EventController {
                     })
                 })))
             })
+        }
+    }
+
+    setRoles(event, rolesURL) {
+        if(event.roles){
+            event.roles.fetch().then(msg => {
+                msg.edit(event.name + " Beosztás\n" + rolesURL).then(msg => {
+                    this.alertRoles(event, "modify")
+                })
+
+                this.client.guilds.fetch(guildid).then(guild => {
+                    guild.channels.fetch(notification_channel).then(channel => {
+
+                        const strDate = event.datetime.toLocaleString()
+            
+                        var embed = new EmbedBuilder()
+                            .setTitle(event.creator.displayName)
+                            .setAuthor({name: "Beosztás Frissítés", iconURL: "https://imgur.com/Si82dbz.png"})
+                            .setDescription(`Azonosító: ${event.dbid}\nTípus: ${event.type}\nNév: ${event.name}`)
+                            .setTimestamp(new Date().valueOf())
+                            .setColor("#0d6ad2")
+            
+                        channel.send({embeds: [embed]})
+            
+                    })
+                })
+            
+                this.db.updateRoles(event)
+            })
+        } else {
+            this.client.guilds.fetch(guildid).then(guild => guild.channels.fetch(sitrep_channel).then(channel => {
+                channel.send(event.name + " Beosztás\n" + rolesURL).then(msg => {event.roles = msg; this.db.updateRoles(event); this.alertRoles(event, "add")})
+                guild.channels.fetch(notification_channel).then(channel => {
+
+                    const strDate = event.datetime.toLocaleString()
+        
+                    var embed = new EmbedBuilder()
+                        .setTitle(event.creator.displayName)
+                        .setAuthor({name: "Beosztás Létrehozás", iconURL: "https://imgur.com/Si82dbz.png"})
+                        .setDescription(`Azonosító: ${event.dbid}\nTípus: ${event.type}\nNév: ${event.name}`)
+                        .setTimestamp(new Date().valueOf())
+                        .setColor("#0d6ad2")
+        
+                    channel.send({embeds: [embed]})
+        
+                })
+            }))
         }
     }
 
@@ -400,7 +571,7 @@ class EventController {
 
                                 var embed = new EmbedBuilder()
                                 .setTitle(event.name + " (" + strDate.substring(0, strDate.length - 3) + ")")
-                                .setAuthor({name: event.creator.displayName, iconURL: event.creator.user.avatarURL()})
+                                .setAuthor({name: event.creator.displayName + " létrehozott egy eseményt", iconURL: event.creator.user.avatarURL()})
                                 .setDescription(event.message.url)
                                 .setColor("#fcba03")
 
@@ -408,7 +579,7 @@ class EventController {
                                     embed.setImage(event.attachments[1].attachment)
                                 }
 
-                                user.createDM().then(channel => channel.send({content: "Új esemény került létrehozásra.", embeds: [embed]}).catch(error => console.log(error)))
+                                user.createDM().then(channel => channel.send({embeds: [embed]}).catch(error => console.log(error)))
                             }
                         })
                     })
@@ -428,7 +599,7 @@ class EventController {
 
                                 var embed = new EmbedBuilder()
                                 .setTitle(event.name + " - Új időpont: " + strDate.substring(0, strDate.length - 3) + "")
-                                .setAuthor({name: event.creator.displayName, iconURL: event.creator.user.avatarURL()})
+                                .setAuthor({name: event.creator.displayName + " módosította egy esemény időpontját", iconURL: event.creator.user.avatarURL()})
                                 .setDescription(event.message.url)
                                 .setColor("#fcba03")
 
@@ -436,7 +607,7 @@ class EventController {
                                     embed.setImage(event.attachments[1].attachment)
                                 }
 
-                                user.createDM().then(channel => channel.send({content: "Egy esemény időpontja módosult, kérlek módosítsd a visszajelzésedet, amennyiben szükséges!", embeds: [embed]}).catch(error => console.log(error)))
+                                user.createDM().then(channel => channel.send({embeds: [embed]}).catch(error => console.log(error)))
                             }
                         })
                     })
@@ -456,8 +627,8 @@ class EventController {
                                     const strDate = event.datetime.toLocaleString()
 
                                     var embed = new EmbedBuilder()
-                                    .setTitle(event.name + strDate.substring(0, strDate.length - 3) + " - SITREP frissítve a készítő által")
-                                    .setAuthor({name: event.creator.displayName, iconURL: event.creator.user.avatarURL()})
+                                    .setTitle(event.name + " (" + strDate.substring(0, strDate.length - 3) + ") - SITREP frissítve a készítő által")
+                                    .setAuthor({name: event.creator.displayName + " frissített egy SITREP-et", iconURL: event.creator.user.avatarURL()})
                                     .setDescription(event.sitrep.url)
                                     .setColor("#fcba03")
 
@@ -465,13 +636,13 @@ class EventController {
                                         embed.setImage(event.attachments[1].attachment)
                                     }
 
-                                    user.createDM().then(channel => channel.send({content: "Egy esemény sitrepje frissült!", embeds: [embed]}).catch(error => console.log(error)))
+                                    user.createDM().then(channel => channel.send({embeds: [embed]}).catch(error => console.log(error)))
                                 } else if (type === "add") {
                                     const strDate = event.datetime.toLocaleString()
 
                                     var embed = new EmbedBuilder()
-                                    .setTitle(event.name + strDate.substring(0, strDate.length - 3) + " - SITREP közétéve a készítő által")
-                                    .setAuthor({name: event.creator.displayName, iconURL: event.creator.user.avatarURL()})
+                                    .setTitle(event.name + " (" + strDate.substring(0, strDate.length - 3) + ") - SITREP közzétéve a készítő által")
+                                    .setAuthor({name: event.creator.displayName + " közzétett egy SITREP-et", iconURL: event.creator.user.avatarURL()})
                                     .setDescription(event.sitrep.url)
                                     .setColor("#fcba03")
 
@@ -479,7 +650,95 @@ class EventController {
                                         embed.setImage(event.attachments[1].attachment)
                                     }
 
-                                    user.createDM().then(channel => channel.send({content: "Egy esemény sitrepje közétételre került!", embeds: [embed]}).catch(error => console.log(error)))
+                                    user.createDM().then(channel => channel.send({embeds: [embed]}).catch(error => console.log(error)))
+                                }
+                            }
+                        })
+                    })
+                })
+            }
+        })
+    }
+
+    alertModlist(event, type) {
+        this.notification.reactions.cache.each(reaction => {
+            if( reaction.emoji.name === "📆" ){
+                reaction.fetch().then(reaction => {
+                    reaction.users.fetch().then(users => {
+                        users.each(user => {
+                            if(user.id !== this.client.user.id) {
+                                if (type === "modify") {
+                                    const strDate = event.datetime.toLocaleString()
+
+                                    var embed = new EmbedBuilder()
+                                    .setTitle(event.name + " (" + strDate.substring(0, strDate.length - 3) + ") - Modlista frissítve a készítő által")
+                                    .setAuthor({name: event.creator.displayName + " frissített egy modlistát", iconURL: event.creator.user.avatarURL()})
+                                    .setDescription(event.message.url)
+                                    .setColor("#fcba03")
+
+                                    if(event.attachments[1]){
+                                        embed.setImage(event.attachments[1].attachment)
+                                    }
+
+                                    user.createDM().then(channel => channel.send({embeds: [embed]}).catch(error => console.log(error)))
+                                } else if (type === "add") {
+                                    const strDate = event.datetime.toLocaleString()
+
+                                    var embed = new EmbedBuilder()
+                                    .setTitle(event.name + " (" + strDate.substring(0, strDate.length - 3) + ") - Modlista közzétéve a készítő által")
+                                    .setAuthor({name: event.creator.displayName + " közzétett egy modlistát", iconURL: event.creator.user.avatarURL()})
+                                    .setDescription(event.message.url)
+                                    .setColor("#fcba03")
+
+                                    if(event.attachments[1]){
+                                        embed.setImage(event.attachments[1].attachment)
+                                    }
+
+                                    user.createDM().then(channel => channel.send({embeds: [embed]}).catch(error => console.log(error)))
+                                }
+                            }
+                        })
+                    })
+                })
+            }
+        })
+    }
+
+    alertRoles(event, type) {
+        this.notification.reactions.cache.each(reaction => {
+            if( reaction.emoji.name === "📆" ){
+                reaction.fetch().then(reaction => {
+                    reaction.users.fetch().then(users => {
+                        users.each(user => {
+                            if(user.id !== this.client.user.id) {
+                                if (type === "modify") {
+                                    const strDate = event.datetime.toLocaleString()
+
+                                    var embed = new EmbedBuilder()
+                                    .setTitle(event.name + " (" + strDate.substring(0, strDate.length - 3) + ") - Beosztás frissítve a készítő által")
+                                    .setAuthor({name: event.creator.displayName + " frissített egy beosztást", iconURL: event.creator.user.avatarURL()})
+                                    .setDescription(event.roles.url)
+                                    .setColor("#fcba03")
+
+                                    if(event.attachments[1]){
+                                        embed.setImage(event.attachments[1].attachment)
+                                    }
+
+                                    user.createDM().then(channel => channel.send({embeds: [embed]}).catch(error => console.log(error)))
+                                } else if (type === "add") {
+                                    const strDate = event.datetime.toLocaleString()
+
+                                    var embed = new EmbedBuilder()
+                                    .setTitle(event.name + " (" + strDate.substring(0, strDate.length - 3) + ") - Beosztás közzétéve a készítő által")
+                                    .setAuthor({name: event.creator.displayName + " közzétett egy beosztást", iconURL: event.creator.user.avatarURL()})
+                                    .setDescription(event.roles.url)
+                                    .setColor("#fcba03")
+
+                                    if(event.attachments[1]){
+                                        embed.setImage(event.attachments[1].attachment)
+                                    }
+
+                                    user.createDM().then(channel => channel.send({embeds: [embed]}).catch(error => console.log(error)))
                                 }
                             }
                         })
@@ -580,7 +839,7 @@ class EventController {
                                         mark = mark.map(id => "<@" + id + ">")
                                         clock = clock.map(id => "<@" + id + ">")
 
-                                        var str = "VISSZAJELZÉSI LOG - " + event.name + "\n\n✅\n" + check.join("\n") + "\n\n❌\n" + cross.join("\n") + "\n\n❓\n" + mark.join("\n") + "\n\n⏰\n" + clock.join("\n") + "\n\n**__NEM JELEZTEK VISSZA__**\n" + none.join("\n")
+                                        var str = "# VISSZAJELZÉSI LOG - " + event.name + "\n\n## ✅\n" + check.join("\n") + "\n\n## ❌\n" + cross.join("\n") + "\n\n## ❓\n" + mark.join("\n") + "\n\n## ⏰\n" + clock.join("\n") + "\n\n## **__NEM JELEZTEK VISSZA__**\n" + none.join("\n")
                                         channel.send(str)
                                     })
                                 }
